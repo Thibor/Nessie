@@ -192,6 +192,7 @@ void read_input(){
 		}
 	}
 }
+
 static void CheckUp() {
 	if ((info.timeLimit && GetTimeMs() - info.timeStart > info.timeLimit) ||
 		(info.nodesLimit && info.nodes > info.nodesLimit)) {
@@ -1130,15 +1131,6 @@ U64 set_occupancy(int index, int bits_in_mask, U64 attack_mask)
 	// return occupancy map
 	return occupancy;
 }
-
-
-/**********************************\
- ==================================
-
-			   Magics
-
- ==================================
-\**********************************/
 
 // find appropriate magic number
 U64 find_magic_number(int square, int relevant_bits, int bishop)
@@ -3052,15 +3044,6 @@ static inline int evaluate()
 	return (side == white) ? score : -score;
 }
 
-
-/**********************************\
- ==================================
-
-			   Search
-
- ==================================
-\**********************************/
-
 /*
 	 These are the score bounds for the range of the mating scores
    [-infinity, -mate_value ... -mate_score, ... score ... mate_score ... mate_value, infinity]
@@ -3812,7 +3795,6 @@ static inline int negamax(int alpha, int beta, int depth)
 // search position for the best move
 static void SearchRoot(int depth)
 {
-	int start = GetTimeMs();
 	int score = 0;
 	follow_pv = 0;
 	score_pv = 0;
@@ -3839,13 +3821,13 @@ static void SearchRoot(int depth)
 		{
 			int permil = Permill();
 			if (score > -mate_value && score < -mate_score)
-				printf("info score mate %d depth %d nodes %lld time %d hashfull %d pv ", -(score + mate_value) / 2 - 1, current_depth, info.nodes, GetTimeMs() - start, permil);
+				printf("info score mate %d depth %d nodes %lld time %d hashfull %d pv ", -(score + mate_value) / 2 - 1, current_depth, info.nodes, GetTimeMs() - info.timeStart, permil);
 
 			else if (score > mate_score && score < mate_value)
-				printf("info score mate %d depth %d nodes %lld time %d hashfull %d pv ", (mate_value - score) / 2 + 1, current_depth, info.nodes, GetTimeMs() - start, permil);
+				printf("info score mate %d depth %d nodes %lld time %d hashfull %d pv ", (mate_value - score) / 2 + 1, current_depth, info.nodes, GetTimeMs() - info.timeStart, permil);
 
 			else
-				printf("info score cp %d depth %d nodes %lld time %d hashfull %d pv ", score, current_depth, info.nodes, GetTimeMs() - start, permil);
+				printf("info score cp %d depth %d nodes %lld time %d hashfull %d pv ", score, current_depth, info.nodes, GetTimeMs() - info.timeStart, permil);
 			for (int count = 0; count < pv_length[0]; count++)
 			{
 				print_move(pv_table[0][count]);
@@ -3853,6 +3835,8 @@ static void SearchRoot(int depth)
 			}
 			printf("\n");
 		}
+		if (info.timeLimit && GetTimeMs() - info.timeStart > info.timeLimit / 2)
+			break;
 	}
 	printf("bestmove ");
 	print_move(pv_table[0][0]);
