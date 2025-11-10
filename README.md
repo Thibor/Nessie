@@ -1,7 +1,7 @@
 # Nessie
 
 <div align="center" style="padding-top: 50px">
-<img src="/Resources/nessie.png" />
+<img src="/Resources/Nessie.png" />
     <br>
     <br>
     <b><i>Uci chess engine 2200 elo.</i></b>
