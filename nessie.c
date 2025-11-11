@@ -120,7 +120,7 @@ struct SearchInfo {
 }info;
 
 // get time in milliseconds
-U64 GetTimeMs()
+static U64 GetTimeMs()
 {
 	return GetTickCount64();
 }
@@ -1207,14 +1207,9 @@ U64 find_magic_number(int square, int relevant_bits, int bishop)
 // init magic numbers
 void init_magic_numbers()
 {
-	// loop over 64 board squares
 	for (int square = 0; square < 64; square++)
-		// init rook magic numbers
 		rook_magic_numbers[square] = find_magic_number(square, rook_relevant_bits[square], rook);
-
-	// loop over 64 board squares
 	for (int square = 0; square < 64; square++)
-		// init bishop magic numbers
 		bishop_magic_numbers[square] = find_magic_number(square, bishop_relevant_bits[square], bishop);
 }
 
@@ -2253,81 +2248,63 @@ static inline void generate_moves(moves* move_list)
 	}
 }
 
-// perft driver
 static inline void perft_driver(int depth)
 {
-	// reccursion escape condition
-	if (depth == 0)
+	// escape condition
+	if (!depth)
 	{
-		// increment nodes count (count reached positions)
+		// count current position
 		info.nodes++;
 		return;
 	}
 
-	// create move list instance
+	// create move list variable
 	moves move_list[1];
 
 	// generate moves
 	generate_moves(move_list);
 
-	// loop over generated moves
+	// loop over the generated moves
 	for (int move_count = 0; move_count < move_list->count; move_count++)
 	{
-		// preserve board state
+		// copy board state
 		copy_board();
 
-		// make move
+		// make only legal moves
 		if (!make_move(move_list->moves[move_count], all_moves))
-			// skip to the next move
+			// skip illegal move
 			continue;
 
-		// call perft driver recursively
+		// recursive call
 		perft_driver(depth - 1);
 
-		// take back
+		// restore board state
 		take_back();
 	}
 }
 
+void ShowInfo(U64 time, U64 nodes) {
+	if (time < 1)
+		time = 1;
+	U64 nps = (nodes * 1000) / time;
+	printf("-----------------------------\n");
+	printf("Time        : %llu\n",time);
+	printf("Nodes       : %llu\n",nodes);
+	printf("Nps         : %llu\n",nps);
+	printf("-----------------------------\n");
+}
+
 // perft test
-void perft_test(int depth)
+static inline void PerformanceTest()
 {
+	int depth = 0;
 	ResetLimit();
-	printf("\n     Performance test\n\n");
-
-	// create move list instance
-	moves move_list[1];
-
-	// generate moves
-	generate_moves(move_list);
-
-	// init start time
-	long start = GetTimeMs();
-
-	// loop over generated moves
-	for (int move_count = 0; move_count < move_list->count; move_count++)
-	{
-		// preserve board state
-		copy_board();
-
-		// make move
-		if (!make_move(move_list->moves[move_count], all_moves))
-			// skip to the next move
-			continue;
-		perft_driver(depth - 1);
-		take_back();
-
-		// print move
-		printf("     move: %s%s%c  nodes: %ld\n", square_to_coordinates[get_move_source(move_list->moves[move_count])],
-			square_to_coordinates[get_move_target(move_list->moves[move_count])],
-			get_move_promoted(move_list->moves[move_count]) ? promoted_pieces[get_move_promoted(move_list->moves[move_count])] : ' ',
-			info.nodes);
+	printf("Performance test\n");
+	while (GetTimeMs() - info.timeStart < 3000) {
+		perft_driver(++depth);
+		printf("%llu. %llu %llu\n", depth, GetTimeMs() - info.timeStart, info.nodes);
 	}
-
-	// print results
-	printf("\n    Depth: %d\n", depth);
-	printf("    Nodes: %lld\n", info.nodes);
-	printf("     Time: %ld\n\n", GetTimeMs() - start);
+	ShowInfo(GetTimeMs() - info.timeStart,info.nodes);
 }
 
 // material score [game phase][piece]
@@ -3971,8 +3948,8 @@ void ParseGo(char* command)
 		info.depthLimit = atoi(argument + 6);
 	if (argument = strstr(command, "nodes"))
 		info.nodesLimit = atoi(argument + 5);
-	int time = side ? wtime : btime;
-	int inc = side ? winc : binc;
+	int time = side ? btime : wtime;
+	int inc = side ? binc : winc;
 	if (time)
 		info.timeLimit = min(time / movestogo + inc, time / 2);
 	SearchRoot(info.depthLimit);
@@ -4023,6 +4000,8 @@ static void UciLoop()
 		}
 		else if (strncmp(input, "go", 2) == 0)
 			ParseGo(input);
+		else if (strncmp(input, "perft", 5) == 0)
+			PerformanceTest();
 		else if (strncmp(input, "quit", 4) == 0)
 			break;
 		else if (strncmp(input, "test", 4) == 0) {
