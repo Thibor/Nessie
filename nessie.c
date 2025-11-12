@@ -263,36 +263,23 @@ U64 generate_magic_number()
 // count bits within a bitboard
 static inline int count_bits(U64 bitboard)
 {
-	// bit counter
 	int count = 0;
-
-	// consecutively reset least significant 1st bit
 	while (bitboard)
 	{
-		// increment count
 		count++;
-
-		// reset least significant 1st bit
 		bitboard &= bitboard - 1;
 	}
-
-	// return bit count
 	return count;
 }
 
 // get least significant 1st bit index
 static inline int get_ls1b_index(U64 bitboard)
 {
-	// make sure bitboard is not 0
 	if (bitboard)
 	{
-		// count trailing bits before LS1B
 		return count_bits((bitboard & -bitboard) - 1);
 	}
-
-	//otherwise
 	else
-		// return illegal index
 		return -1;
 }
 
@@ -2248,61 +2235,58 @@ static inline void generate_moves(moves* move_list)
 	}
 }
 
-static inline void perft_driver(int depth)
+static inline void PerftDriver(int depth)
 {
-	// escape condition
 	if (!depth)
 	{
-		// count current position
 		info.nodes++;
 		return;
 	}
-
-	// create move list variable
 	moves move_list[1];
-
-	// generate moves
 	generate_moves(move_list);
-
-	// loop over the generated moves
 	for (int move_count = 0; move_count < move_list->count; move_count++)
 	{
-		// copy board state
 		copy_board();
-
-		// make only legal moves
 		if (!make_move(move_list->moves[move_count], all_moves))
-			// skip illegal move
 			continue;
-
-		// recursive call
-		perft_driver(depth - 1);
-
-		// restore board state
+		PerftDriver(depth - 1);
 		take_back();
 	}
 }
 
-void ShowInfo(U64 time, U64 nodes) {
+static int ShrinkNumber(U64 n) {
+	if (n < 1000)
+		return 0;
+	if (n < 1000000)
+		return 1;
+	if (n < 1000000000)
+		return 2;
+	return 3;
+}
+
+static void ShowInfo(U64 time, U64 nodes) {
 	if (time < 1)
 		time = 1;
 	U64 nps = (nodes * 1000) / time;
+	const char* units[] = { "", "k", "m", "g"};
+	int sn = ShrinkNumber(nps);
+	U64 p = pow(10,sn*3);
 	printf("-----------------------------\n");
 	printf("Time        : %llu\n",time);
 	printf("Nodes       : %llu\n",nodes);
-	printf("Nps         : %llu\n",nps);
+	printf("Nps         : %llu (%llu%s/s)\n",nps,nps/p,units[sn]);
 	printf("-----------------------------\n");
 }
 
-// perft test
+//performance test
 static inline void PerformanceTest()
 {
 	int depth = 0;
 	ResetLimit();
 	printf("Performance test\n");
 	while (GetTimeMs() - info.timeStart < 3000) {
-		perft_driver(++depth);
-		printf("%llu. %llu %llu\n", depth, GetTimeMs() - info.timeStart, info.nodes);
+		PerftDriver(++depth);
+		printf("%2llu. %4llu %12llu\n", depth, GetTimeMs() - info.timeStart, info.nodes);
 	}
 	ShowInfo(GetTimeMs() - info.timeStart,info.nodes);
 }
@@ -3798,7 +3782,7 @@ static void SearchRoot(int depth)
 		{
 			int permil = Permill();
 			if (score > -mate_value && score < -mate_score)
-				printf("info score mate %d depth %d nodes %lld time %d hashfull %d pv ", -(score + mate_value) / 2 - 1, current_depth, info.nodes, GetTimeMs() - info.timeStart, permil);
+				printf("info score mate %d depth %d nodes %lld time %d hashfull %d pv ", -(mate_value + score) / 2, current_depth, info.nodes, GetTimeMs() - info.timeStart, permil);
 
 			else if (score > mate_score && score < mate_value)
 				printf("info score mate %d depth %d nodes %lld time %d hashfull %d pv ", (mate_value - score) / 2 + 1, current_depth, info.nodes, GetTimeMs() - info.timeStart, permil);
@@ -3851,68 +3835,35 @@ static int ParseMove(char* move_string)
 	return 0;
 }
 
-// parse UCI "position" command
+//parse UCI "position" command
 static void ParsePosition(char* command)
 {
 	command += 9;
-
-	// init pointer to the current character in the command string
 	char* current_char = command;
-
-	// parse UCI "startpos" command
 	if (strncmp(command, "startpos", 8) == 0)
-		// init chess board with start position
 		parse_fen(start_position);
-
-	// parse UCI "fen" command 
 	else
 	{
-		// make sure "fen" command is available within command string
 		current_char = strstr(command, "fen");
-
-		// if no "fen" command is available within command string
 		if (current_char == NULL)
-			// init chess board with start position
 			parse_fen(start_position);
-
-		// found "fen" substring
 		else
 		{
-			// shift pointer to the right where next token begins
 			current_char += 4;
-
-			// init chess board with position from FEN string
 			parse_fen(current_char);
 		}
 	}
-
-	// parse moves after position
 	current_char = strstr(command, "moves");
-
-	// moves available
 	if (current_char != NULL)
 	{
-		// shift pointer to the right where next token begins
 		current_char += 6;
-
-		// loop over moves within a move string
 		while (*current_char)
 		{
-			// parse next move
 			int move = ParseMove(current_char);
-
-			// if no more moves
 			if (move == 0)
-				// break out of the loop
 				break;
-
-			// increment repetition index
 			repetition_index++;
-
-			// wtire hash key into a repetition table
 			repetition_table[repetition_index] = hash_key;
-
-			// make move on the chess board
 			make_move(move, all_moves);
 			while (*current_char && *current_char != ' ')
 				current_char++;
@@ -3922,7 +3873,7 @@ static void ParsePosition(char* command)
 }
 
 // parse UCI command "go"
-void ParseGo(char* command)
+static void ParseGo(char* command)
 {
 	ResetLimit();
 	int wtime = 0;
@@ -3965,13 +3916,13 @@ static void UciLoop()
 {
 	setbuf(stdin, NULL);
 	setbuf(stdout, NULL);
-	char input[200];
+	char input[3000];
 	printf("%s %s\n", NAME, VERSION);
 	while (TRUE)
 	{
 		memset(input, 0, sizeof(input));
 		fflush(stdout);
-		if (!fgets(input, 2000, stdin))
+		if (!fgets(input, 3000, stdin))
 			continue;
 		if (input[0] == '\n')
 			continue;
@@ -4005,8 +3956,9 @@ static void UciLoop()
 		else if (strncmp(input, "quit", 4) == 0)
 			break;
 		else if (strncmp(input, "test", 4) == 0) {
-			ParsePosition("position startpos moves e2e4 c7c5 g1f3 d7d6 d2d4 g8f6 d4c5 f6e4 c5d6 b8c6 d6e7 d8d1 e1d1 f8e7 c1e3 e8g8 d1c1 c8e6 f1d3 e4c5 d3e2 a8d8 h1e1 f8e8 b1c3 a7a6 a2a4 h7h6 h2h4 e7d6 e1d1 d6e7 f3d4 c6d4 e3d4 e6f5 g2g4 f5e6 f2f4 f7f5 g4g5 h6g5 h4g5 e6f7 d4e3 d8d1 c1d1 e7g5 e3c5 g5f4 e2d3 f7h5 c3e2 h5f3 a1a3 f3g4 a4a5 e8c8 b2b4 c8e8 c5d4 g8f7 c2c4 e8d8 d4b6 d8h8 d1e1 h8h1 e1f2 h1h2 f2f1 f4e5 b6e3 h2h3 e3g5 h3h1 f1f2 h1h2 f2e3 g4e2 d3e2 e5b2 a3d3 b2c1 d3d2 f7g6 g5f4 h2h4 e3d3 h4f4 d2c2 c1a3 d3c3 f4e4 e2d3 e4e3 c2d2 e3f3 b4b5 a3d6 b5b6 g6f6 c3c2 d6b4 d2h2 b4a5 c4c5 a5b4 c5c6 b7c6 b6b7 b4d6 h2h8 a6a5 h8c8 f3f2 c2c1 d6f4 c1b1 f6g5 c8c6 f2d2 d3b5 d2d5 b5c4 d5d7 c6b6 g5g4 c4e2 g4g3 e2b5 d7d1 b1c2 d1d5 b6g6 g3f2 b5c6 d5d6 c6e8 d6d2 c2b3 f4e5 g6g5 d2b2 b3a4 f5f4 e8c6 b2b4 a4a5 e5c3 c6b5 b4d4 a5a6 d4d8 g5c5 c3d4 c5c8 d8d6 a6a5 d4a7 c8a8 a7b6 a5b4 b6c7 a8c8 d6d4 b4c5 c7e5 c8e8 d4e4 c5c6 f2g3 b5d3 e4e1 e8e5 e1e5 b7b8q e5e6 c6d5 e6e3 d3g6 e3e7 b8d8 e7e1 d8g5 g3f3 g6h5 f3f2 g5f4 f2g2 f4d2 g2f1 h5f3 e1e7 d2g2 f1e1 g2g1 e1d2 g1d4 d2e1 d4h4 e1f1 h4e7 f1f2 e7e2 f2g3 e2g2 g3f4 g2g4");
-			ParseGo("go wtime 120 btime 120 winc 0 binc 0");
+			ParsePosition("position startpos moves d2d4 g8f6 c2c4 c7c6 g1f3 d7d5 b1c3 d5c4 a2a4 c8f5 e2e3 e7e6 f1c4 b8d7 f3h4 f5g4 f2f3 g4h5 e1g1 f6d5 g2g3 f8e7 c1d2 e7h4 g3h4 e8g8 a1c1 d8h4 d1e1 h4e1 c1e1 d7b6 c4b3 d5b4 a4a5 b4d3 a5b6 d3e1 d2e1 a7b6 h2h4 a8a1 g1f2 f8d8 c3e2 a1b1 f1g1 b1b2 b3d1 e6e5 e1c3 b2b1 e2g3 h5g6 h4h5 g6d3 h5h6 e5d4 c3d4 g7h6 e3e4 g8f8 g3f5 d3c4 f3f4 c4e6 d1h5 b1g1 f2g1 e6f5 d4b6 f5g6 b6d8 g6h5 d8b6 h5f3 e4e5 f3e4 g1f2 e4f5 f2g3 f8g7 g3h4 g7g6 b6c5 f5e6 c5b6 h6h5 h4g3 e6d5 g3h4 d5b3 h4g3 g6f5 b6g1 b3c4 g1b6 c4e2 g3f2 e2g4 f2g3 f5e4 g3h4 e4f4 e5e6 f7e6 b6a5 g4f3 a5d2 f4f5 h4g3 f3e2 g3f2 e2c4 f2g3 c4b3 d2e3 f5e4 e3b6 b3d1 g3f2 h5h4 b6d8 h4h3 f2g3 d1g4 d8b6");
+			//ParseGo("go wtime 20824 btime 9975 winc 500 binc 500");
+			ParseGo("go wtime 15023 btime 11151 winc 500 binc 500");
 		}
 		else if (!strncmp(input, "setoption name Hash value ", 26)) {
 			int mb = hash_size;
