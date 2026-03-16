@@ -16,10 +16,4 @@
 
 ## Features
 
-- [x] Alpha beta pruning<br>
-- [x] Quiescence search<br>
-- [ ] Transposition table
-- [ ] Bitboard<br>
-- [ ] Null move pruning<br>
-- [ ] Futility pruning<br>
-- [ ] Razoring<br>
+- board: bitboard
