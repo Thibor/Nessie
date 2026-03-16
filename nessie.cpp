@@ -727,8 +727,9 @@ static void PrintBoard(Position& pos) {
 	for (int n = 0; n < 4; n++)
 		if (!np.castling[n])
 			castling[n] = '-';
-	printf("side     : %10s\n", pos.flipped ? "black" : "white");
-	printf("castling : %10s\n", castling);
+	printf("side     : %16s\n", pos.flipped ? "black" : "white");
+	printf("castling : %16s\n", castling);
+	printf("hash     : %16llx\n", GetHash(pos));
 }
 
 static int ShrinkNumber(U64 n) {
@@ -1095,7 +1096,7 @@ static void SetFen(Position& pos, const string& fen) {
 	string word;
 	ss >> word;
 	int i = 56;
-	for (const auto c : word) {
+	for (char c : word) {
 		if (c >= '1' && c <= '8')
 			i += c - '1' + 1;
 		else if (c == '/')
