@@ -78,6 +78,7 @@ enum Rank : int { RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8
 
 struct Position {
 	bool flipped = false;
+	int move50;
 	U64 castling[4]{};
 	U64 color[2]{};
 	U64 pieces[6]{};
@@ -475,6 +476,7 @@ static auto MakeMove(Position& pos, const Move& move) {
 	const int captured = PieceTypeOn(pos, move.to);
 	const U64 to = 1ULL << move.to;
 	const U64 from = 1ULL << move.from;
+	pos.move50 = captured != PT_NB || piece == PAWN ? 0 : pos.move50++;
 	pos.color[0] ^= from | to;
 	pos.pieces[piece] ^= from | to;
 	if (piece == PAWN && to == pos.ep) {
@@ -790,7 +792,8 @@ static int EvalPosition(Position& pos) {
 		FlipPosition(pos);
 		score = -score;
 	}
-	return (Mg(score) * phase + Eg(score) * (24 - phase)) / 24;
+	score= (Mg(score) * phase + Eg(score) * (24 - phase)) / 24;
+	return (100 - pos.move50) * score / 100;
 }
 
 static string StrToLower(string s) {
@@ -867,7 +870,7 @@ static int SearchAlpha(Position& pos, int alpha, const int beta, int depth, cons
 	const U64 tt_key = GetHash(pos);
 
 	if (ply > 0 && !in_qsearch)
-		if (IsRepetition(tt_key))
+		if (pos.move50 >= 100 || IsRepetition(tt_key))
 			return 0;
 
 	// TT Probing
@@ -1128,6 +1131,8 @@ static void SetFen(Position& pos, const string& fen) {
 		const int sq = word[0] - 'a' + 8 * (word[1] - '1');
 		pos.ep = 1ULL << sq;
 	}
+	ss >> word;
+	pos.move50 = stoi(word);
 	if (black_move)
 		FlipPosition(pos);
 }
