@@ -250,8 +250,9 @@ static void InitTT(U64 mb) {
 	TTClear();
 }
 
-static bool IsRepetition(U64 hash) {
-	for (int n = hash_count - 2; n >= 0; n -= 2)
+static bool IsRepetition(Position& pos, U64 hash) {
+	int limit = max(0, hash_count - pos.move50);
+	for (int n = hash_count - 4; n >= limit; n -= 2)
 		if (hash_history[n] == hash)
 			return true;
 	return false;
@@ -476,7 +477,9 @@ static auto MakeMove(Position& pos, const Move& move) {
 	const int captured = PieceTypeOn(pos, move.to);
 	const U64 to = 1ULL << move.to;
 	const U64 from = 1ULL << move.from;
-	pos.move50 = captured != PT_NB || piece == PAWN ? 0 : pos.move50++;
+	pos.move50++;
+	if (captured != PT_NB || piece == PAWN)
+		pos.move50 = 0;
 	pos.color[0] ^= from | to;
 	pos.pieces[piece] ^= from | to;
 	if (piece == PAWN && to == pos.ep) {
@@ -666,7 +669,7 @@ static void PrintPv(const Position& pos, const Move move) {
 	const TT_Entry& tt_entry = tt[tt_key % tt_count];
 	if (tt_entry.key != tt_key || tt_entry.move == Move{} || tt_entry.flag != EXACT)
 		return;
-	if (IsRepetition(tt_key))
+	if (IsRepetition(npos,tt_key))
 		return;
 	hash_history[hash_count++] = tt_key;
 	PrintPv(npos, tt_entry.move);
@@ -870,7 +873,7 @@ static int SearchAlpha(Position& pos, int alpha, const int beta, int depth, cons
 	const U64 tt_key = GetHash(pos);
 
 	if (ply > 0 && !in_qsearch)
-		if (pos.move50 >= 100 || IsRepetition(tt_key))
+		if (pos.move50 >= 100 || IsRepetition(pos,tt_key))
 			return 0;
 
 	// TT Probing
