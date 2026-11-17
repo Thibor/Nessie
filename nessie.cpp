@@ -158,7 +158,6 @@ int tempo = 0;
 int contempt = 0;
 int LINEAR_REDUCTION[64][64];
 
-
 int BonusOrg[PT_NB][RANK_NB][int(FILE_NB) / 2] = {
 	//int BonusOrg[PT_NB][RANK_NB][4] = {
 	  { // Pawn
@@ -1242,8 +1241,8 @@ static void SetFen(Position& pos, const string& fen) {
 				: (c == 'r' || c == 'R') ? ROOK
 				: (c == 'q' || c == 'Q') ? QUEEN
 				: KING;
-			pos.color[side] ^= 1ULL << i;
-			pos.pieces[piece] ^= 1ULL << i;
+			pos.color[side] ^= BIT(i);
+			pos.pieces[piece] ^= BIT(i);
 			i++;
 		}
 	}
@@ -1297,6 +1296,8 @@ static void UciPerformance(Position& pos) {
 	int depth = 0;
 	SetFen(pos, START_FEN);
 	while (GetTimeMs() - info.timeStart < 4000) {
+		info.nodes = 0;
+		info.timeStart = GetTimeMs();
 		PerftDriver(pos, depth++);
 		printf("%2d. %8llu %12llu\n", depth, GetTimeMs() - info.timeStart, info.nodes);
 	}
@@ -1337,9 +1338,9 @@ static void ParsePosition(Position& pos, string command) {
 }
 
 static void ParseGo(Position& pos, string command) {
-	stringstream stack(command);
+	stringstream ss(command);
 	string token;
-	stack >> token;
+	ss >> token;
 	if (token != "go")
 		return;
 	ResetInfo();
@@ -1348,23 +1349,23 @@ static void ParseGo(Position& pos, string command) {
 	int winc = 0;
 	int binc = 0;
 	int movestogo = 32;
-	while (stack >> token) {
+	while (ss >> token) {
 		if (token == "wtime")
-			stack >> wtime;
+			ss >> wtime;
 		else if (token == "btime")
-			stack >> btime;
+			ss >> btime;
 		else if (token == "winc")
-			stack >> winc;
+			ss >> winc;
 		else if (token == "binc")
-			stack >> binc;
+			ss >> binc;
 		else if (token == "movestogo")
-			stack >> movestogo;
+			ss >> movestogo;
 		else if (token == "movetime")
-			stack >> info.timeLimit;
+			ss >> info.timeLimit;
 		else if (token == "depth")
-			stack >> info.depthLimit;
+			ss >> info.depthLimit;
 		else if (token == "nodes")
-			stack >> info.nodesLimit;
+			ss >> info.nodesLimit;
 	}
 	int time = pos.flipped ? btime : wtime;
 	int inc = pos.flipped ? binc : winc;
@@ -1386,10 +1387,8 @@ void UciCommand(string command) {
 		cout << "option name hash type spin default " << options.ttMb << " min 1 max 1000" << endl;
 		cout << "uciok" << endl;
 	}
-	else if (token == "isready")
-		cout << "readyok" << endl;
-	else if (token == "ucinewgame")
-		TTEvalClear();
+	else if (token == "isready")cout << "readyok" << endl;
+	else if (token == "ucinewgame")TTEvalClear();
 	else if (token == "position")
 		ParsePosition(pos, command);
 	else if (token == "go")
@@ -1444,6 +1443,7 @@ int main(const int argc, const char** argv) {
 	InitEval();
 	InitTT(options.ttMb);
 	InitSlidersBmi2();
+	setbuf(stdout, NULL);
 	cout << NAME << " " << VERSION << endl;
 	SetFen(pos, START_FEN);
 	string line;
